@@ -1,0 +1,8 @@
+---
+simplesamlphp_branch: simplesamlphp-1.12
+simplesamlphp_dir: "/var/simplesamlphp"
+simplesamlphp_repo: "https://github.com/simplesamlphp/simplesamlphp.git"
+simplesamlphp_suburi: "saml"
+simplesamlphp_cert_dir: "/etc/ssl/"
+simplesamlphp_cert_key: "forgeservicelab.fi.key"
+simplesamlphp_cert: "forgeservicelab.fi.crt.wholechain"

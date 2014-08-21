@@ -1,0 +1,125 @@
+---
+- apt:
+    update_cache: yes
+    cache_valid_time: 86400
+
+- apt:
+    pkg: "{{ item }}"
+  with_items:
+    - git
+    - libapache2-mod-php5
+    - php5-ldap
+    - php5-mcrypt
+    - php5-mysql
+    - php5-curl
+    - php5-gmp
+    - php-crypt-blowfish
+    - libmcrypt4
+    - subversion
+
+- name: clone github repo
+  git:
+    repo: "{{ simplesamlphp_repo }}"
+    dest: "{{ simplesamlphp_dir }}"
+    version: "{{ simplesamlphp_branch }}"
+
+- command: cp -r config-templates config
+  args:
+    chdir: "{{ simplesamlphp_dir }}"
+    creates: "{{ simplesamlphp_dir }}/config"
+
+- command: cp -r metadata-templates metadata
+  args:
+    chdir: "{{ simplesamlphp_dir }}"
+    creates: "{{ simplesamlphp_dir }}/metadata"
+
+- template:
+    src: simplesamlphp.conf
+    dest: /etc/apache2/sites-available/simplesamlphp.conf
+    backup: true
+
+- template:
+    src: saml20-idp-hosted.php
+    dest: /var/simplesamlphp/metadata/saml20-idp-hosted.php
+    backup: true
+
+- template:
+    src: authsources.php
+    dest: /var/simplesamlphp/config/authsources.php
+    backup: true
+
+- command: php5enmod mcrypt
+  notify: restart apache
+
+- shell: curl -sS https://getcomposer.org/installer | php
+  args:
+    chdir: "{{ simplesamlphp_dir }}"
+    creates: "{{ simplesamlphp_dir }}/composer.phar"
+
+- command: php composer.phar install
+  args:
+    chdir: "{{ simplesamlphp_dir }}"
+    creates: "{{ simplesamlphp_dir }}/vendor"
+
+- command: a2ensite simplesamlphp.conf
+  notify: restart apache
+
+- command: a2dissite 000-default.conf
+  notify: restart apache
+
+- command: a2enmod ssl
+  notify: restart apache
+
+# Generation of secret salt for the installation
+
+- shell: grep -q Ansible_generated_salt "{{ simplesamlphp_dir }}"/config/config.php
+  register: salt_found
+  ignore_errors: True
+
+- shell: tr -c -d '0123456789abcdefghijklmnopqrstuvwxyz' </dev/urandom | dd bs=32 count=1 2>/dev/null
+  register: salt
+  when: salt_found|failed
+
+- lineinfile:
+    dest:  "{{ simplesamlphp_dir }}/config/config.php"
+    regexp: "secretsalt.*=>"
+    line: "//Ansible_generated_salt\n  'secretsalt' => '{{salt.stdout}}',"
+  when: salt_found|failed
+
+- lineinfile:
+    dest:  "{{ simplesamlphp_dir }}/config/config.php"
+    regexp: "baseurlpath.*=>"
+    line: "  'baseurlpath' => '{{ simplesamlphp_suburi }}/',"
+    backup: yes
+  notify: restart apache
+
+- lineinfile:
+    dest:  "{{ simplesamlphp_dir }}/config/config.php"
+    regexp: "auth.adminpassword.*=>"
+    line: "  'auth.adminpassword' => '{{ simplesamlphp_admin_password }}',"
+    backup: yes
+  notify: restart apache
+
+- lineinfile:
+    dest:  "{{ simplesamlphp_dir }}/config/config.php"
+    regexp: "certdir.*=>"
+    line: "  'certdir' => '{{ simplesamlphp_cert_dir }}',"
+    backup: yes
+  notify: restart apache
+
+- lineinfile:
+    dest:  "{{ simplesamlphp_dir }}/config/config.php"
+    regexp: "enable.saml20-idp.*=>"
+    line: "  'enable.saml20-idp' => true,"
+    backup: yes
+  notify: restart apache
+
+- file:
+    recurse: yes
+    group: www-data
+    owner: www-data
+    path:  "{{ simplesamlphp_dir }}"
+
+- debug:
+    msg: "visit https://{{ ansible_fqdn }}/{{ simplesamlphp_suburi }}"
+
