@@ -2,7 +2,7 @@
 
 Role installs simplesamlphp (https://simplesamlphp.org/) as Identity Provider, and binds it to a LDAP auth source. The LDAP source is configured in template, the whole authsource.php is supplied from template actually.
 
-It works on Ubuntu, apache2 is web server.
+It works on Ubuntu 14.04, apache2 is web server.
 
 To customize, you must edit the templates and think about parameters to pass.
 
