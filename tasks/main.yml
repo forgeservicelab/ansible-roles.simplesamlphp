@@ -45,8 +45,8 @@
     insertafter: EOF
     line: "Listen {{ item }}"
   with_items:
-    - 80
-    - 443
+    - 0.0.0.0:80
+    - 0.0.0.0:443
   notify: restart apache
 
 - stat:
