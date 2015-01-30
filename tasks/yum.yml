@@ -1,0 +1,19 @@
+- yum:
+    name: http://dl.fedoraproject.org/pub/epel/7/x86_64/e/epel-release-7-5.noarch.rpm
+  sudo: True
+
+- yum:
+    name: "{{ item }}"
+  sudo: True
+  with_items:
+    - git
+    - httpd
+    - mod_ssl
+    - php
+    - php-xml
+    - php-ldap
+    - php-mcrypt
+    - php-mysql
+    - php-curl
+    - php-gmp
+    - subversion

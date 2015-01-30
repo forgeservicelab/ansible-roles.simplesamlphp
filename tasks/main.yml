@@ -2,20 +2,13 @@
 - apt:
     update_cache: yes
     cache_valid_time: 86400
+  when: ansible_pkg_mgr == 'apt'
 
-- apt:
-    pkg: "{{ item }}"
-  with_items:
-    - git
-    - libapache2-mod-php5
-    - php5-ldap
-    - php5-mcrypt
-    - php5-mysql
-    - php5-curl
-    - php5-gmp
-    - php-crypt-blowfish
-    - libmcrypt4
-    - subversion
+- include: apt.yml
+  when: ansible_pkg_mgr == 'apt'
+
+- include: yum.yml
+  when: ansible_pkg_mgr == 'yum'
 
 - name: clone github repo
   git:
@@ -37,18 +30,49 @@
     src: simplesamlphp.conf
     dest: /etc/apache2/sites-available/simplesamlphp.conf
     backup: true
+  when: ansible_os_family == 'Debian'
+
+- template:
+    src: simplesamlphp.conf
+    dest: /etc/httpd/conf.d/simplesamlphp.conf
+    backup: true
+  when: ansible_os_family == 'RedHat'
+  notify: restart apache
+
+- lineinfile:
+    backup: yes
+    dest: "{{ '/etc/httpd/conf/httpd.conf' if ansible_os_family == 'RedHat' else '/etc/apache2/ports.conf' }}"
+    insertafter: EOF
+    line: "Listen {{ item }}"
+  with_items:
+    - 80
+    - 443
+  notify: restart apache
+
+- stat:
+    path: /etc/httpd/conf.d/welcome.conf
+  when: ansible_os_family == 'RedHat'
+  register: welcome
+
+- replace:
+    dest: /etc/httpd/conf.d/welcome.conf
+    regexp: ^(?!#)(.*)$
+    replace: '#\1'
+  when: welcome.stat.exists
+  notify: restart apache
 
 - template:
     src: saml20-idp-hosted.php
-    dest: /var/simplesamlphp/metadata/saml20-idp-hosted.php
+    dest: "{{ simplesamlphp_dir }}/metadata/saml20-idp-hosted.php"
     backup: true
 
 - template:
     src: authsources.php
-    dest: /var/simplesamlphp/config/authsources.php
+    dest: "{{ simplesamlphp_dir }}/config/authsources.php"
     backup: true
 
 - command: php5enmod mcrypt
+  when: ansible_os_family == 'Debian'
   notify: restart apache
 
 - shell: curl -sS https://getcomposer.org/installer | php
@@ -62,12 +86,15 @@
     creates: "{{ simplesamlphp_dir }}/vendor"
 
 - command: a2ensite simplesamlphp.conf
+  when: ansible_os_family == 'Debian'
   notify: restart apache
 
 - command: a2dissite 000-default.conf
+  when: ansible_os_family == 'Debian'
   notify: restart apache
 
 - command: a2enmod ssl
+  when: ansible_os_family == 'Debian'
   notify: restart apache
 
 # Generation of secret salt for the installation
@@ -119,7 +146,15 @@
     group: www-data
     owner: www-data
     path:  "{{ simplesamlphp_dir }}"
+  when: ansible_os_family == 'Debian'
+
+- file:
+    recurse: yes
+    group: apache
+    owner: apache
+    setype: httpd_sys_rw_content_t
+    path:  "{{ simplesamlphp_dir }}"
+  when: ansible_os_family == 'RedHat'
 
 - debug:
     msg: "visit https://{{ ansible_fqdn }}/{{ simplesamlphp_suburi }}"
-
