@@ -156,5 +156,8 @@
     path:  "{{ simplesamlphp_dir }}"
   when: ansible_os_family == 'RedHat'
 
+- set_fact:
+    simplesamlphp_fqdn: "{{ simplesamlphp_fqdn }}"
+
 - debug:
-    msg: "visit https://{{ ansible_fqdn }}/{{ simplesamlphp_suburi }}"
+    msg: "visit https://{{ simplesamlphp_fqdn }}/{{ simplesamlphp_suburi }}"
