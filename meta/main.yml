@@ -2,8 +2,8 @@
 galaxy_info:
   author: Tomas Karasek
   description:
-  company: Digile Oy
-  license: GPLv2
+  company: DIGILE Ltd.
+  license: MIT
   min_ansible_version: 1.2
   platform:
     - name: Ubuntu
